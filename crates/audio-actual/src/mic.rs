@@ -30,7 +30,12 @@ pub(crate) fn is_unusable_input_device(name: &str) -> bool {
     }
 
     let lower = name.to_ascii_lowercase();
-    lower.contains(".monitor") || lower.contains("monitor of ")
+    // The ALSA "null" PCM generates zero samples at unbounded rate, flooding the
+    // pipeline; it must never be selected as a microphone.
+    lower.contains(".monitor")
+        || lower.contains("monitor of ")
+        || lower == "null"
+        || lower.contains("discard all samples")
 }
 
 fn rank_input_devices(
@@ -606,6 +611,10 @@ mod tests {
         assert!(is_unusable_input_device("Monitor of Built-in Audio"));
         assert!(!is_unusable_input_device("Built-in Audio Analog Stereo"));
         assert!(!is_unusable_input_device("USB Microphone"));
+        assert!(is_unusable_input_device("null"));
+        assert!(is_unusable_input_device(
+            "Discard all samples (playback) or generate zero samples (capture)"
+        ));
     }
 
     #[test]
