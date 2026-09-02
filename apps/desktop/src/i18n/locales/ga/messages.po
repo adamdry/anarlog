@@ -3489,6 +3489,10 @@ msgstr ""
 msgid "Prepare for events with a 5-minute reminder."
 msgstr ""
 
+#: src/session/components/note-input/transcript/screens/empty.tsx
+msgid "Preparing audio..."
+msgstr ""
+
 #: src/session/components/outer-header/overflow/export-modal.tsx
 msgid "Preparing transcript..."
 msgstr ""
@@ -5221,6 +5225,10 @@ msgstr ""
 
 #: src/shared/useNewNote.ts
 msgid "Upload Transcript"
+msgstr ""
+
+#: src/session/components/note-input/transcript/screens/empty.tsx
+msgid "Uploading audio..."
 msgstr ""
 
 #: src/settings/developers/cloud-api.tsx

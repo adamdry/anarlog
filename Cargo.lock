@@ -12229,6 +12229,7 @@ name = "owhisper-client"
 version = "0.0.1"
 dependencies = [
  "am",
+ "async-trait",
  "audio-utils",
  "backon",
  "base64 0.22.1",
@@ -12236,6 +12237,8 @@ dependencies = [
  "data",
  "deepgram",
  "futures-util",
+ "http 1.4.0",
+ "http-body 1.0.1",
  "language",
  "observability",
  "openai-transcription",

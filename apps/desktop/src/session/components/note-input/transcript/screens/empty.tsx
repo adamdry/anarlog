@@ -9,6 +9,8 @@ import {
 import { Button } from "@anlg/ui/components/ui/button";
 import { Spinner } from "@anlg/ui/components/ui/spinner";
 
+import type { BatchPhase } from "~/store/zustand/listener/batch";
+
 export function TranscriptEmptyState({
   isBatching,
   hasAudio,
@@ -23,7 +25,7 @@ export function TranscriptEmptyState({
   isBatching?: boolean;
   hasAudio?: boolean;
   percentage?: number;
-  phase?: "importing" | "transcribing";
+  phase?: BatchPhase;
   error?: string | null;
   onRetranscribe?: () => void;
   onUploadAudio?: () => void;
@@ -68,11 +70,7 @@ export function TranscriptEmptyState({
           <Spinner size={36} />
         </div>
         <div className={onStopTranscription ? "mb-6" : undefined}>
-          <p className="text-base font-medium">
-            {phase === "importing"
-              ? t`Importing audio...`
-              : t`Generating transcript...`}
-          </p>
+          <p className="text-base font-medium">{batchPhaseLabel(phase)}</p>
           {hasProgress && (
             <p className="text-muted-foreground mt-2 text-sm leading-relaxed tabular-nums">
               {t`${Math.round((percentage ?? 0) * 100)}% complete`}
@@ -132,4 +130,17 @@ export function TranscriptEmptyState({
       )}
     </div>
   );
+}
+
+function batchPhaseLabel(phase?: BatchPhase) {
+  switch (phase) {
+    case "importing":
+      return t`Importing audio...`;
+    case "preparing":
+      return t`Preparing audio...`;
+    case "uploading":
+      return t`Uploading audio...`;
+    default:
+      return t`Generating transcript...`;
+  }
 }

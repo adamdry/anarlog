@@ -1,12 +1,25 @@
 use crate::{batch, common_derives, stream};
 
 common_derives! {
+    #[derive(Copy, Eq)]
+    #[serde(rename_all = "snake_case")]
+    pub enum BatchProgressStage {
+        Preparing,
+        Uploading,
+        Transcribing,
+    }
+}
+
+common_derives! {
     #[serde(tag = "type", rename_all = "snake_case")]
     pub enum BatchStreamEvent {
         Progress {
             percentage: f64,
             #[serde(default)]
             partial_text: Option<String>,
+            /// Absent for providers that stream transcription progress directly.
+            #[serde(default, skip_serializing_if = "Option::is_none")]
+            stage: Option<BatchProgressStage>,
         },
         Segment {
             response: stream::StreamResponse,

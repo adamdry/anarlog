@@ -2808,7 +2808,7 @@ describe("useStartListening", () => {
     expect(requestMainAutoEnhanceMock).not.toHaveBeenCalled();
   });
 
-  test("does not auto-enhance after the user cancels the batch repair", async () => {
+  test("keeps the recording and stops recovery after the user cancels the batch repair", async () => {
     useSessionHasTranscriptMock.mockReturnValue(true);
     runBatchMock.mockRejectedValueOnce(new Error("Transcription stopped."));
 
@@ -2835,8 +2835,16 @@ describe("useStartListening", () => {
     expect(saveCaptureLifecycleMarkerMock).not.toHaveBeenCalledWith(
       expect.objectContaining({ phase: "finalizing" }),
     );
-    expect(endCloudsyncActivityMock).not.toHaveBeenCalled();
-    expect(requestCaptureRecoveryMock).toHaveBeenCalledWith("session-1");
+    expect(clearCaptureLifecycleMarkerMock).toHaveBeenCalledWith(
+      "session-1",
+      "generated-id",
+    );
+    expect(requestCaptureRecoveryMock).not.toHaveBeenCalled();
+    expect(deleteProcessedAudioForRetentionMock).not.toHaveBeenCalled();
+    expect(endCloudsyncActivityMock).toHaveBeenCalledWith(
+      "capture",
+      "session-1:generated-id",
+    );
   });
 
   test("forwards auto-enhance to the main window when no enhancer service exists", async () => {

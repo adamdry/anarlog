@@ -13,6 +13,28 @@ use anlg_transcribe_core::TARGET_SAMPLE_RATE;
 
 use super::super::BatchParams;
 use super::*;
+use crate::{BatchEvent, BatchRuntime};
+
+struct NoopRuntime;
+
+impl BatchRuntime for NoopRuntime {
+    fn emit(&self, _event: BatchEvent) {}
+}
+
+#[derive(Default)]
+struct RecordingRuntime {
+    events: std::sync::Mutex<Vec<BatchEvent>>,
+}
+
+impl BatchRuntime for RecordingRuntime {
+    fn emit(&self, event: BatchEvent) {
+        self.events.lock().unwrap().push(event);
+    }
+}
+
+fn test_progress() -> Arc<BatchProgress> {
+    BatchProgress::new(Arc::new(NoopRuntime), "test".to_string())
+}
 
 #[derive(Clone, Default)]
 struct HangingHttpAdapter;
@@ -344,6 +366,7 @@ async fn oversized_audio_is_uploaded_one_segment_at_a_time() {
             max_bytes: size - 1,
             max_duration: Duration::from_secs(1),
         }),
+        test_progress(),
     )
     .await
     .unwrap();
@@ -369,7 +392,7 @@ async fn compresses_oversized_legacy_wav_before_anarlog_upload() {
     let source_size = std::fs::metadata(source.path()).unwrap().len();
     let max_bytes = source_size / 2;
 
-    let upload = prepare_anarlog_batch_upload(source.path().to_str().unwrap(), max_bytes)
+    let upload = prepare_anarlog_batch_upload(source.path().to_str().unwrap(), max_bytes, None)
         .await
         .unwrap();
 
@@ -385,9 +408,108 @@ async fn keeps_anarlog_uploads_that_fit_without_reencoding() {
     let source_path = source.path().to_path_buf();
     let max_bytes = std::fs::metadata(&source_path).unwrap().len();
 
-    let upload = prepare_anarlog_batch_upload(source_path.to_str().unwrap(), max_bytes)
+    let upload = prepare_anarlog_batch_upload(source_path.to_str().unwrap(), max_bytes, None)
         .await
         .unwrap();
+
+    assert_eq!(upload.path(), source_path);
+}
+
+#[test]
+fn compresses_only_uploads_that_are_large_and_fat() {
+    let ten_minutes = Some(Duration::from_secs(600));
+    let stereo_128kbps = 128_000 / 8 * 600;
+    let stereo_48kbps = 48_000 / 8 * 600;
+    let mono_64kbps = 64_000 / 8 * 600;
+
+    assert!(should_compress_for_upload(
+        stereo_128kbps,
+        ten_minutes,
+        Some(2)
+    ));
+    assert!(should_compress_for_upload(
+        mono_64kbps,
+        ten_minutes,
+        Some(1)
+    ));
+    assert!(!should_compress_for_upload(
+        stereo_48kbps,
+        ten_minutes,
+        Some(2)
+    ));
+    assert!(
+        !should_compress_for_upload(200 * 1024, Some(Duration::from_secs(1)), Some(2)),
+        "small uploads finish before a re-encode would"
+    );
+    assert!(!should_compress_for_upload(stereo_128kbps, None, Some(2)));
+    assert!(!should_compress_for_upload(
+        stereo_128kbps,
+        ten_minutes,
+        Some(6)
+    ));
+}
+
+#[tokio::test]
+async fn compresses_large_recordings_and_reports_preparation_progress() {
+    let source = tempfile::Builder::new().suffix(".wav").tempfile().unwrap();
+    // 20s of 32-bit float mono: 1.28 MB of WAV at 512 kbps.
+    write_test_wav_samples(source.path(), TARGET_SAMPLE_RATE as usize * 20);
+    let source_size = std::fs::metadata(source.path()).unwrap().len();
+    let runtime = Arc::new(RecordingRuntime::default());
+    let progress = BatchProgress::new(runtime.clone(), "compress-test".to_string());
+
+    let upload = prepare_direct_batch_upload(
+        source.path().to_str().unwrap(),
+        "deepgram",
+        false,
+        Some(progress),
+    )
+    .await
+    .unwrap();
+
+    assert_eq!(upload.path().extension().unwrap(), "mp3");
+    let encoded_size = std::fs::metadata(upload.path()).unwrap().len();
+    assert!(
+        encoded_size * 8 < source_size,
+        "{encoded_size} bytes is not much smaller than {source_size}"
+    );
+    assert!(source.path().exists());
+
+    let stages: Vec<_> = runtime
+        .events
+        .lock()
+        .unwrap()
+        .iter()
+        .filter_map(|event| match event {
+            BatchEvent::BatchResponseStreamed {
+                event:
+                    owhisper_interface::batch_stream::BatchStreamEvent::Progress {
+                        stage: Some(stage),
+                        percentage,
+                        ..
+                    },
+                ..
+            } => Some((*stage, *percentage)),
+            _ => None,
+        })
+        .collect();
+    assert!(!stages.is_empty());
+    assert!(stages.iter().all(|(stage, _)| {
+        *stage == owhisper_interface::batch_stream::BatchProgressStage::Preparing
+    }));
+    assert_eq!(stages.last().unwrap().1, 1.0);
+}
+
+#[tokio::test]
+async fn leaves_small_recordings_alone() {
+    let source = tempfile::Builder::new().suffix(".wav").tempfile().unwrap();
+    write_test_wav_samples(source.path(), TARGET_SAMPLE_RATE as usize * 3);
+    let source_path = source.path().to_path_buf();
+
+    let upload =
+        prepare_direct_batch_upload(source_path.to_str().unwrap(), "deepgram", false, None)
+            .await
+            .unwrap();
 
     assert_eq!(upload.path(), source_path);
 }
@@ -421,6 +543,7 @@ async fn direct_provider_timeout_cancels_non_responding_request() {
         min_speakers: None,
         max_speakers: None,
     };
+    let upload = UploadProgress::whole(test_progress(), &params.file_path);
     let request = tokio::spawn(run_direct_batch_with_timeout::<HangingHttpAdapter>(
         "hanging-http",
         params,
@@ -432,6 +555,7 @@ async fn direct_provider_timeout_cancels_non_responding_request() {
             ..Default::default()
         },
         Duration::from_secs(5),
+        upload,
     ));
 
     tokio::time::timeout(Duration::from_secs(6), request_started.notified())

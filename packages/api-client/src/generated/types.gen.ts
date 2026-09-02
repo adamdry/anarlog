@@ -75,6 +75,8 @@ export type BatchListenSuccessResponse = {
     Callback: ListenCallbackResponse;
 };
 
+export type BatchProgressStage = 'preparing' | 'uploading' | 'transcribing';
+
 export type BatchResponse = {
     metadata: {
         [key: string]: unknown;
@@ -89,6 +91,7 @@ export type BatchResults = {
 export type BatchStreamEvent = {
     partial_text?: string | null;
     percentage: number;
+    stage?: null | BatchProgressStage;
     type: 'progress';
 } | {
     percentage: number;

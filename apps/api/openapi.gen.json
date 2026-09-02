@@ -5257,6 +5257,14 @@
           }
         ]
       },
+      "BatchProgressStage": {
+        "type": "string",
+        "enum": [
+          "preparing",
+          "uploading",
+          "transcribing"
+        ]
+      },
       "BatchResponse": {
         "type": "object",
         "required": [
@@ -5304,6 +5312,17 @@
               "percentage": {
                 "type": "number",
                 "format": "double"
+              },
+              "stage": {
+                "oneOf": [
+                  {
+                    "type": "null"
+                  },
+                  {
+                    "$ref": "#/components/schemas/BatchProgressStage",
+                    "description": "Absent for providers that stream transcription progress directly."
+                  }
+                ]
               },
               "type": {
                 "type": "string",

@@ -7,13 +7,15 @@ use reqwest_middleware::ClientWithMiddleware;
 
 use crate::adapter::{BatchSttAdapter, append_provider_param, is_anarlog_proxy};
 use crate::error::Error;
-use crate::http_client::create_client;
+use crate::http_client::{create_client, create_client_with_upload_progress};
+use crate::upload_progress::UploadProgressFn;
 use crate::{DeepgramAdapter, ListenClientBuilder, normalize_listen_params};
 
 pub struct BatchClientBuilder<A: BatchSttAdapter = DeepgramAdapter> {
     api_base: Option<String>,
     api_key: Option<String>,
     params: Option<ListenParams>,
+    upload_progress: Option<UploadProgressFn>,
     _marker: PhantomData<A>,
 }
 
@@ -23,6 +25,7 @@ impl Default for BatchClientBuilder {
             api_base: None,
             api_key: None,
             params: None,
+            upload_progress: None,
             _marker: PhantomData,
         }
     }
@@ -44,17 +47,29 @@ impl<A: BatchSttAdapter> BatchClientBuilder<A> {
         self
     }
 
+    /// Observes the audio upload as `(bytes sent, total bytes)`.
+    pub fn upload_progress(mut self, on_progress: UploadProgressFn) -> Self {
+        self.upload_progress = Some(on_progress);
+        self
+    }
+
     pub fn adapter<B: BatchSttAdapter>(self) -> BatchClientBuilder<B> {
         BatchClientBuilder {
             api_base: self.api_base,
             api_key: self.api_key,
             params: self.params,
+            upload_progress: self.upload_progress,
             _marker: PhantomData,
         }
     }
 
     pub fn build(self) -> BatchClient<A> {
-        BatchClient::new(
+        let client = match self.upload_progress {
+            Some(on_progress) => create_client_with_upload_progress(on_progress),
+            None => create_client(),
+        };
+        BatchClient::with_client(
+            client,
             self.api_base.expect("api_base is required"),
             self.api_key.unwrap_or_default(),
             self.params.unwrap_or_default(),
@@ -88,16 +103,26 @@ impl<A: BatchSttAdapter> BatchClient<A> {
             api_base: None,
             api_key: None,
             params: None,
+            upload_progress: None,
             _marker: PhantomData,
         }
     }
 
     pub fn new(api_base: String, api_key: String, params: ListenParams) -> Self {
+        Self::with_client(create_client(), api_base, api_key, params)
+    }
+
+    fn with_client(
+        client: ClientWithMiddleware,
+        api_base: String,
+        api_key: String,
+        params: ListenParams,
+    ) -> Self {
         let api_base = Self::normalize_api_base(api_base);
         let params = normalize_listen_params(params);
 
         Self {
-            client: create_client(),
+            client,
             api_base,
             api_key,
             params,

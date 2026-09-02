@@ -363,6 +363,7 @@ impl<S> OpenAISseParserState<S> {
                 Some(Ok(BatchStreamEvent::Progress {
                     percentage: self.progress.observe_delta(&partial_text),
                     partial_text: Some(partial_text),
+                    stage: None,
                 }))
             }
             ParsedTranscriptionStreamEvent::TextDone { text, usage, .. } => {

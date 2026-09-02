@@ -100,6 +100,7 @@ pub(super) async fn open_segmented_stream(
                             Err(_) => yield Ok(BatchStreamEvent::Progress {
                                 percentage: index as f64 / total as f64,
                                 partial_text: Some(merged.transcript()),
+                                stage: None,
                             }),
                         }
                     }
@@ -121,10 +122,11 @@ pub(super) async fn open_segmented_stream(
                         merged.absorb_terminal(duration, channels);
                         completed = true;
                     }
-                    Ok(BatchStreamEvent::Progress { percentage, partial_text }) => {
+                    Ok(BatchStreamEvent::Progress { percentage, partial_text, .. }) => {
                         yield Ok(BatchStreamEvent::Progress {
                             percentage: rescale(index, percentage, total),
                             partial_text: Some(merged.with_partial(partial_text.as_deref())),
+                            stage: None,
                         });
                     }
                     Ok(BatchStreamEvent::Segment { mut response, percentage }) => {
@@ -398,6 +400,7 @@ mod tests {
                 BatchStreamEvent::Progress {
                     percentage,
                     partial_text,
+                    ..
                 } => progress.push((percentage, partial_text.unwrap_or_default())),
                 BatchStreamEvent::Result { response } => results.push(response),
                 other => panic!("unexpected event: {other:?}"),

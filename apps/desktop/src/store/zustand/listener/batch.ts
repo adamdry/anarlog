@@ -16,7 +16,11 @@ import {
   type TranscriptTimingSource,
 } from "~/stt/timing";
 
-export type BatchPhase = "importing" | "transcribing";
+export type BatchPhase =
+  | "importing"
+  | "preparing"
+  | "uploading"
+  | "transcribing";
 export type BatchTerminalReason = "failed" | "timed_out" | "stopped";
 
 export type BatchState = {
@@ -146,6 +150,7 @@ export const createBatchSlice = <T extends BatchState>(
 
   handleBatchResponseStreamed: (sessionId, event) => {
     const percentage = getBatchStreamPercentage(event);
+    const phase = getBatchStreamPhase(event);
     const isComplete = event.type === "result" || event.type === "terminal";
     const currentPreview = get().batchPreview[sessionId] ?? {
       wordsByChannel: {},
@@ -166,7 +171,7 @@ export const createBatchSlice = <T extends BatchState>(
         [sessionId]: {
           percentage,
           isComplete: isComplete || false,
-          phase: "transcribing",
+          phase,
           terminalReason: undefined,
           error: undefined,
           errorCode: undefined,
@@ -550,6 +555,20 @@ function mergeBatchPreview(
       [channelIndex]: [...hintsBefore, ...adjustedIncomingHints, ...hintsAfter],
     },
   };
+}
+
+function getBatchStreamPhase(event: BatchStreamEvent): BatchPhase {
+  if (event.type !== "progress") {
+    return "transcribing";
+  }
+  switch (event.stage) {
+    case "preparing":
+      return "preparing";
+    case "uploading":
+      return "uploading";
+    default:
+      return "transcribing";
+  }
 }
 
 function getBatchStreamPercentage(event: BatchStreamEvent): number {

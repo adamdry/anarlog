@@ -251,6 +251,7 @@ tauri-plugin-windows = { path = "plugins/windows" }
 
 anlg-supervisor = { path = "crates/supervisor", package = "supervisor" }
 async-stream = "0.3.6"
+async-trait = "0.1"
 futures-channel = "0.3.31"
 futures-core = "0.3.31"
 futures-util = "0.3.31"
@@ -284,6 +285,7 @@ dotenvy = "0.15.7"
 envy = "0.4"
 governor = "0.10.4"
 http = "1"
+http-body = "1"
 image = { version = "0.25.10", default-features = false, features = ["webp"] }
 include_url_macro = "0.1.0"
 indoc = "2"

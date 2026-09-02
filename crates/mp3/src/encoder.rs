@@ -1,6 +1,6 @@
 use std::marker::PhantomData;
 
-use mp3lame_encoder::{Builder as LameBuilder, DualPcm, FlushNoGap, MonoPcm};
+use mp3lame_encoder::{Bitrate, Builder as LameBuilder, DualPcm, FlushNoGap, MonoPcm, Quality};
 
 use crate::Error;
 
@@ -22,7 +22,26 @@ struct EncoderCore {
 impl<M> StreamEncoder<M> {
     fn with_channels(sample_rate: u32, channels: u8) -> Result<Self, Error> {
         Ok(Self {
-            core: EncoderCore::new(sample_rate, channels)?,
+            core: EncoderCore::new(
+                sample_rate,
+                channels,
+                bitrate_for_channels(channels)?,
+                Quality::NearBest,
+            )?,
+            _marker: PhantomData,
+        })
+    }
+
+    /// Lower-bitrate, faster encode for audio that only needs to survive a
+    /// speech-to-text upload, not playback.
+    fn with_channels_for_upload(
+        sample_rate: u32,
+        channels: u8,
+        kbps_per_channel: u32,
+    ) -> Result<Self, Error> {
+        let bitrate = bitrate_from_kbps(kbps_per_channel * u32::from(channels))?;
+        Ok(Self {
+            core: EncoderCore::new(sample_rate, channels, bitrate, Quality::Good)?,
             _marker: PhantomData,
         })
     }
@@ -35,6 +54,10 @@ impl<M> StreamEncoder<M> {
 impl StreamEncoder<Mono> {
     pub fn new(sample_rate: u32) -> Result<Self, Error> {
         Self::with_channels(sample_rate, 1)
+    }
+
+    pub fn for_upload(sample_rate: u32, kbps_per_channel: u32) -> Result<Self, Error> {
+        Self::with_channels_for_upload(sample_rate, 1, kbps_per_channel)
     }
 
     pub fn encode_f32(&mut self, samples: &[f32], output: &mut Vec<u8>) -> Result<(), Error> {
@@ -64,6 +87,10 @@ impl StreamEncoder<Mono> {
 impl StreamEncoder<Stereo> {
     pub fn new(sample_rate: u32) -> Result<Self, Error> {
         Self::with_channels(sample_rate, 2)
+    }
+
+    pub fn for_upload(sample_rate: u32, kbps_per_channel: u32) -> Result<Self, Error> {
+        Self::with_channels_for_upload(sample_rate, 2, kbps_per_channel)
     }
 
     pub fn encode_f32(
@@ -123,8 +150,12 @@ impl StreamEncoder<Stereo> {
 }
 
 impl EncoderCore {
-    fn new(sample_rate: u32, channels: u8) -> Result<Self, Error> {
-        let bitrate = bitrate_for_channels(channels)?;
+    fn new(
+        sample_rate: u32,
+        channels: u8,
+        bitrate: Bitrate,
+        quality: Quality,
+    ) -> Result<Self, Error> {
         let mut mp3_builder = LameBuilder::new().ok_or(Error::LameInit)?;
         mp3_builder
             .set_num_channels(channels)
@@ -136,7 +167,7 @@ impl EncoderCore {
             .set_brate(bitrate)
             .map_err(|e| Error::LameConfig(format!("{:?}", e)))?;
         mp3_builder
-            .set_quality(mp3lame_encoder::Quality::NearBest)
+            .set_quality(quality)
             .map_err(|e| Error::LameConfig(format!("{:?}", e)))?;
 
         Ok(Self {
@@ -157,12 +188,29 @@ impl EncoderCore {
 
 pub(crate) use anlg_audio_utils::f32_to_i16;
 
-fn bitrate_for_channels(channels: u8) -> Result<mp3lame_encoder::Bitrate, Error> {
+fn bitrate_for_channels(channels: u8) -> Result<Bitrate, Error> {
     match channels {
-        1 => Ok(mp3lame_encoder::Bitrate::Kbps64),
-        2 => Ok(mp3lame_encoder::Bitrate::Kbps128),
+        1 => Ok(Bitrate::Kbps64),
+        2 => Ok(Bitrate::Kbps128),
         count => Err(Error::UnsupportedChannelCount(count.into())),
     }
+}
+
+fn bitrate_from_kbps(kbps: u32) -> Result<Bitrate, Error> {
+    Ok(match kbps {
+        8 => Bitrate::Kbps8,
+        16 => Bitrate::Kbps16,
+        24 => Bitrate::Kbps24,
+        32 => Bitrate::Kbps32,
+        40 => Bitrate::Kbps40,
+        48 => Bitrate::Kbps48,
+        64 => Bitrate::Kbps64,
+        80 => Bitrate::Kbps80,
+        96 => Bitrate::Kbps96,
+        112 => Bitrate::Kbps112,
+        128 => Bitrate::Kbps128,
+        other => return Err(Error::UnsupportedBitrate(other)),
+    })
 }
 
 pub(crate) fn int_to_i16(sample: i32, bits_per_sample: u16) -> i16 {

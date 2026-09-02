@@ -236,7 +236,8 @@ async fn run_batch_inner(
             if supports_progressive_batch(adapter_kind, listen_params.model.as_deref()) {
                 run_progressive_batch_session(runtime, params, listen_params).await
             } else {
-                run_direct_batch_for_adapter_kind(adapter_kind, params, listen_params).await
+                run_direct_batch_for_adapter_kind(runtime, adapter_kind, params, listen_params)
+                    .await
             }
         }
         BatchProvider::WhisperLocal => {
@@ -248,7 +249,13 @@ async fn run_batch_inner(
             if OpenAIAdapter::supports_progressive_batch_model(listen_params.model.as_deref()) {
                 run_progressive_batch_session(runtime, params, listen_params).await
             } else {
-                run_direct_batch_for_adapter_kind(AdapterKind::OpenAI, params, listen_params).await
+                run_direct_batch_for_adapter_kind(
+                    runtime,
+                    AdapterKind::OpenAI,
+                    params,
+                    listen_params,
+                )
+                .await
             }
         }
         BatchProvider::DashScope => Err(crate::BatchFailure::BatchCapabilityUnsupported {
@@ -259,7 +266,7 @@ async fn run_batch_inner(
             let adapter_kind = provider
                 .to_adapter_kind()
                 .expect("all non-special BatchProvider variants have an AdapterKind mapping");
-            run_direct_batch_for_adapter_kind(adapter_kind, params, listen_params).await
+            run_direct_batch_for_adapter_kind(runtime, adapter_kind, params, listen_params).await
         }
     }
 }

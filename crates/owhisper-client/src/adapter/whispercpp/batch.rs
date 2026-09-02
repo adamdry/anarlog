@@ -387,6 +387,7 @@ impl<S> SseParserState<S> {
         Some(Ok(BatchStreamEvent::Progress {
             percentage: progress.percentage,
             partial_text: progress.partial_text,
+            stage: None,
         }))
     }
 

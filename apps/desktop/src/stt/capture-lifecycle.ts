@@ -478,8 +478,25 @@ export function useCaptureLifecycle(sessionId: string) {
               reasons: repairReasons,
             });
           } catch (error) {
+            // A user stop is a decision, not a failure to recover from:
+            // keep the recording for a manual re-transcribe instead of
+            // scheduling the same repair again.
             if (isStoppedTranscriptionError(error)) {
-              await requestRecovery();
+              console.info("[listener] post-stop transcript repair stopped", {
+                sessionId,
+                reasons: repairReasons,
+              });
+              try {
+                await clearCaptureLifecycleMarker(sessionId, transcriptId);
+                recoveryPending = false;
+                recoveryStateCleared = true;
+              } catch (clearError) {
+                console.error(
+                  "[listener] failed to stop automatic capture recovery",
+                  clearError,
+                );
+                await requestRecovery();
+              }
               return;
             }
             console.error("[listener] post-stop transcript repair failed", {

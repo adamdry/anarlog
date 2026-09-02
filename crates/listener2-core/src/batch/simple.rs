@@ -8,9 +8,10 @@ pub(super) use local::{run_apple_speech_batch, run_soniqo_batch};
 use super::upload::segment_plan;
 #[cfg(test)]
 use direct::{
-    DIRECT_BATCH_TIMEOUT_CEILING, DIRECT_BATCH_TIMEOUT_FLOOR, direct_batch_timeout_for_audio,
-    merge_segment_responses, prepare_anarlog_batch_upload, run_direct_batch,
-    run_direct_batch_with_timeout,
+    BatchProgress, DIRECT_BATCH_TIMEOUT_CEILING, DIRECT_BATCH_TIMEOUT_FLOOR, UploadProgress,
+    direct_batch_timeout_for_audio, merge_segment_responses, prepare_anarlog_batch_upload,
+    prepare_direct_batch_upload, run_direct_batch, run_direct_batch_with_timeout,
+    should_compress_for_upload,
 };
 #[cfg(test)]
 use local::{

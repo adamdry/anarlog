@@ -1,13 +1,13 @@
 import type { DegradedError } from "@anlg/plugin-transcription";
 
 import { useAudioPlayer } from "~/audio-player";
+import type { BatchPhase } from "~/store/zustand/listener/batch";
 import { getLiveCaptureUiMode } from "~/store/zustand/listener/general-shared";
 import { useListener } from "~/stt/contexts";
 import type { Segment } from "~/stt/live-segment";
 import { useSessionTranscriptMetadata } from "~/stt/queries";
 
 type ListeningStatus = "listening" | "finalizing";
-type BatchPhase = "importing" | "transcribing";
 type RequestedLiveTranscription = boolean | null;
 
 export type TranscriptScreen =

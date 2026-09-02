@@ -514,6 +514,7 @@ impl SoniqoProgressReporter {
             event: BatchStreamEvent::Progress {
                 percentage,
                 partial_text: None,
+                stage: None,
             },
         });
     }

@@ -3489,6 +3489,10 @@ msgstr "Post to a channel"
 msgid "Prepare for events with a 5-minute reminder."
 msgstr "Prepare for events with a 5-minute reminder."
 
+#: src/session/components/note-input/transcript/screens/empty.tsx
+msgid "Preparing audio..."
+msgstr "Preparing audio..."
+
 #: src/session/components/outer-header/overflow/export-modal.tsx
 msgid "Preparing transcript..."
 msgstr "Preparing transcript..."
@@ -5222,6 +5226,10 @@ msgstr "Upload transcript"
 #: src/shared/useNewNote.ts
 msgid "Upload Transcript"
 msgstr "Upload Transcript"
+
+#: src/session/components/note-input/transcript/screens/empty.tsx
+msgid "Uploading audio..."
+msgstr "Uploading audio..."
 
 #: src/settings/developers/cloud-api.tsx
 msgid "Uploads meeting content for remote access while Anarlog is closed."

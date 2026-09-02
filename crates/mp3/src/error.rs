@@ -14,6 +14,9 @@ pub enum Error {
     #[error("invalid segment duration: {0:?}")]
     InvalidSegmentDuration(std::time::Duration),
 
+    #[error("unsupported MP3 bitrate: {0} kbps")]
+    UnsupportedBitrate(u32),
+
     #[error("failed to create LAME encoder")]
     LameInit,
 

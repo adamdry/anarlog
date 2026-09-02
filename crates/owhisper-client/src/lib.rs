@@ -10,6 +10,7 @@ mod local_apple_speech_live;
 mod local_soniqo_live;
 pub(crate) mod polling;
 mod providers;
+mod upload_progress;
 
 #[cfg(test)]
 pub(crate) mod test_utils;
@@ -51,6 +52,7 @@ pub use local_apple_speech_live::{
 pub use local_soniqo_live::{
     LocalSoniqoLiveClient, LocalSoniqoLiveError, LocalSoniqoLiveHandle, LocalSoniqoLiveStream,
 };
+pub use upload_progress::UploadProgressFn;
 
 pub fn normalize_listen_params(mut params: ListenParams) -> ListenParams {
     params.languages = adapter::normalize_languages(&params.languages);
